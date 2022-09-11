@@ -71,9 +71,13 @@ Commands:
   get       Extract given part of <version>, where part is one of major, minor,
             patch, prerel, build, or release.
 
+  range     Compares to a semver range returns 0 if <other_version> is within 
+            <range>
+
   validate  Validate if <version> follows the SEMVER pattern (see <version>
             definition). Print 'valid' to stdout if the version is valid, otherwise
             print 'invalid'.
+  
 
 See also:
   https://semver.org -- Semantic Versioning 2.0.0"
@@ -109,6 +113,22 @@ function validate_version {
   else
     error "version $version does not match the semver scheme 'X.Y.Z(-PRERELEASE)(+BUILD)'. See help for more information."
   fi
+}
+
+function validate_range {
+  #TODO make more robust.. pretty hard to validate a valid range
+  local range=$1
+  first_char=${range:0:1}
+  valid_first_char="1234567890^~<>=x*"
+  invalid_char="abcdefghijklm"
+  #Checks first char
+  if [[ "${valid_first_char}" == *"${first_char}"* ]]
+  then
+    echo "${range}"
+  else
+    error "range ${range} does not match the semver scheme. See https://devhints.io/semver for more information."
+  fi
+
 }
 
 function is_nat {
@@ -197,6 +217,10 @@ function compare_version {
   # otherwise, compare the pre-release id's
 
   compare_fields left right
+}
+
+function compare_version_to_range {
+  echo "compare_version_to_range"
 }
 
 # render_prerel -- return a prerel field with a trailing numeric string
@@ -331,6 +355,20 @@ function command_compare {
   exit 0
 }
 
+function command_range {
+  local v; local v_;
+
+  case $# in
+    2) v=$(validate_range "$1"); v_=$(validate_version "$2") ;;
+    *) usage_help ;;
+  esac
+  echo "range: ${v}"
+  echo "version: ${v_}"
+  set +u                        # need unset array element to evaluate to null
+  compare_version_to_range "$v" "$v_"
+  exit 0
+}
+
 function command_diff {
   validate_version "$1" v1_parts
   # shellcheck disable=SC2154
@@ -413,6 +451,7 @@ case $1 in
   bump) shift; command_bump "$@";;
   get) shift; command_get "$@";;
   compare) shift; command_compare "$@";;
+  range) shift; command_range "$@";;
   diff) shift; command_diff "$@";;
   validate) shift; command_validate "$@";;
   *) echo "Unknown arguments: $*"; usage_help;;
